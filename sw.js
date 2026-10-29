@@ -1,6 +1,6 @@
 // Guarda la app para que abra rápido. Los datos siempre vienen de Supabase.
 // Sube el número de versión cuando cambies archivos de la app.
-const CACHE = 'tiempo-juego-v1';
+const CACHE = 'tiempo-juego-v2';
 const ARCHIVOS = [
   './', 'index.html', 'styles.css', 'app.js', 'config.js', 'manifest.webmanifest',
   'icons/icon-192.png', 'icons/icon-512.png',

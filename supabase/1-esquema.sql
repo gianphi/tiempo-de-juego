@@ -1,5 +1,5 @@
 -- =====================================================================
---  Tiempo de Juego — base de datos y seguridad
+--  Organizador de tiempo — base de datos y seguridad
 --  Pegar COMPLETO en Supabase → SQL Editor → New query → Run.
 --  Se puede volver a ejecutar sin perder datos.
 -- =====================================================================
@@ -304,6 +304,25 @@ revoke execute on function public.iniciar_juego(uuid)  from public, anon;
 revoke execute on function public.terminar_juego(uuid) from public, anon;
 grant  execute on function public.iniciar_juego(uuid)  to authenticated;
 grant  execute on function public.terminar_juego(uuid) to authenticated;
+
+-- ---------- Entrar sin contraseña (solo ver citas) ----------
+-- Cualquiera con el enlace puede llamarla. Devuelve solo las citas APROBADAS
+-- desde hoy (fecha, hora, minutos y temporizador): sin notas, nombres ni chat.
+
+create or replace function public.citas_aprobadas(p_desde date)
+returns table (id uuid, fecha date, hora time, minutos int, iniciada_en timestamptz, terminada_en timestamptz)
+language sql stable security definer
+set search_path = public
+as $$
+  select s.id, s.fecha, s.hora, s.minutos, s.iniciada_en, s.terminada_en
+  from public.solicitudes s
+  where s.estado = 'aprobada' and s.fecha >= greatest(p_desde, current_date - 2)
+  order by s.fecha, s.hora nulls last, s.creado_en
+  limit 50
+$$;
+
+revoke execute on function public.citas_aprobadas(date) from public;
+grant  execute on function public.citas_aprobadas(date) to anon, authenticated;
 
 -- ---------- Tiempo real (chat y checklist sincronizados) ----------
 

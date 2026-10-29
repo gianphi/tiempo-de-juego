@@ -103,6 +103,7 @@ a.btn { display: inline-block; text-decoration: none; }
   background: var(--card);
 }
 .error { color: var(--peligro); min-height: 1.4em; margin: .3rem 0; }
+.sin-pin { margin-top: 1.6rem; padding-top: 1.2rem; border-top: 1px solid var(--borde); }
 .aviso-config {
   background: var(--alerta-suave);
   color: var(--texto);
@@ -132,7 +133,7 @@ a.btn { display: inline-block; text-decoration: none; }
 }
 .demo a { color: inherit; }
 
-#vista {
+#vista, .vista-citas {
   flex: 1;
   overflow-y: auto;
   padding: 4px 16px 16px;
@@ -224,6 +225,8 @@ a.btn { display: inline-block; text-decoration: none; }
 .sesion.activa { background: var(--ok-suave); }
 .sesion.fin { background: var(--bg); color: var(--suave); font-size: .9rem; }
 .cuenta { font-variant-numeric: tabular-nums; font-size: 1.15rem; }
+.dia-cita { font-weight: 700; color: var(--suave); font-size: .85rem; margin: 14px 0 0; }
+.tarjeta h2 + .dia-cita { margin-top: 0; }
 
 /* ---------- Checklist ---------- */
 .lista-tareas { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }

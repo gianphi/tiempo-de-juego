@@ -1,6 +1,6 @@
 {
-  "name": "Tiempo de Juego",
-  "short_name": "Tiempo Juego",
+  "name": "Organizador de tiempo",
+  "short_name": "Organizador",
   "description": "Checklist de tareas y control del tiempo de juego",
   "lang": "es",
   "start_url": "./",

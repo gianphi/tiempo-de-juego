@@ -1,4 +1,4 @@
-# 🎮 Tiempo de Juego
+# 🎮 Organizador de tiempo
 
 App web para controlar el tiempo de juego de Cristian con un checklist diario.
 Funciona en celular, tablet y PC, sincronizada en línea, gratis.
@@ -8,6 +8,8 @@ Funciona en celular, tablet y PC, sincronizada en línea, gratis.
   Admin y tutora pueden marcar y editar las tareas, y cambiar el tiempo a ganar.
 - **Chat** (tutora ↔ admin): solicitudes de juego (las pide Cristian o la tutora), aprobar / cambiar / rechazar, y temporizador.
 - **Control** (solo admin): últimos 7 días y registro de todo lo que hace cada uno.
+- **Entrar sin contraseña:** en la pantalla de inicio. Solo muestra las citas aprobadas
+  (fecha, hora, minutos y cuenta regresiva); sin tareas, chat, notas ni nombres. Se actualiza cada 30 segundos.
 
 Prueba sin configurar nada: abre la app con `?demo` al final de la dirección.
 
@@ -47,7 +49,8 @@ Prueba sin configurar nada: abre la app con `?demo` al final de la dirección.
    En 1–2 minutos queda en `https://TU-USUARIO.github.io/tiempo-de-juego/`.
 
 > El código queda público, pero **los datos no**: la clave de `config.js` es pública por diseño
-> y la base de datos solo responde a Admin y Tutora con su PIN (reglas RLS).
+> y la base de datos solo responde a Admin y Tutora con su PIN (reglas RLS). Lo único visible
+> sin PIN son las citas aprobadas (fecha, hora y minutos), para quien tenga el enlace.
 
 ### 3. Instalar en cada dispositivo
 

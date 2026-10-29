@@ -3,6 +3,7 @@
 (() => {
   const CFG = window.CONFIG || {};
   const NOMBRE = CFG.NOMBRE || 'Cristian';
+  const TITULO = 'Organizador de tiempo';
   const TZ = zonaValida(CFG.ZONA_HORARIA) ? CFG.ZONA_HORARIA : 'America/Lima';
   const params = new URLSearchParams(location.search);
   const DEMO = params.has('demo');
@@ -16,6 +17,9 @@
     usuario: null,
     rol: null,
     errorLogin: '',
+    invitado: false, // entró sin contraseña: solo ve las citas aprobadas
+    citas: null,
+    errorCitas: '',
     tab: 'hoy',
     editando: false,
     cargado: false,
@@ -160,6 +164,7 @@
   }
 
   async function recargar() {
+    if (S.invitado) return cargarCitas();
     if (!S.usuario) return;
     S.hoy = fechaEn();
     const d = await api.cargar({ hoy: S.hoy, desde: sumarDias(S.hoy, -13), admin: esAdmin() });
@@ -169,6 +174,30 @@
     revisarMensajesNuevos();
     S.cargado = true;
     render();
+  }
+
+  async function cargarCitas() {
+    S.hoy = fechaEn();
+    try {
+      S.citas = await api.citas(S.hoy);
+      S.errorCitas = '';
+    } catch (e) {
+      S.errorCitas = traducirError(e);
+    }
+    render();
+  }
+
+  // El modo sin contraseña se recuerda en el dispositivo (en el demo, solo en la pestaña).
+  const CLAVE_INVITADO = 'tiempo-juego-invitado';
+  function recordarInvitado(si) {
+    try {
+      const st = DEMO ? sessionStorage : localStorage;
+      if (si) st.setItem(CLAVE_INVITADO, '1');
+      else st.removeItem(CLAVE_INVITADO);
+    } catch { /* sin almacenamiento */ }
+  }
+  function eraInvitado() {
+    try { return (DEMO ? sessionStorage : localStorage).getItem(CLAVE_INVITADO) === '1'; } catch { return false; }
   }
 
   async function guardarResumen() {
@@ -210,6 +239,12 @@
   function render() {
     const app = $('#app');
     if (!api) { app.innerHTML = vistaSinConfig(); return; }
+    if (S.invitado) {
+      const scroll = $('.vista-citas')?.scrollTop || 0;
+      app.innerHTML = vistaCitas();
+      $('.vista-citas').scrollTop = scroll;
+      return;
+    }
     if (!S.usuario || !S.cargado) { app.innerHTML = vistaLogin(); return; }
     if (!$('#vista')) app.innerHTML = vistaShell();
     $('#yo-nombre').textContent = nombreRol(S.rol);
@@ -251,7 +286,7 @@
       : 'Edita <code>config.js</code> con la URL y la clave pública de tu proyecto de Supabase (mira LEEME.md).';
     return `<main class="login">
       <div class="logo">🎮</div>
-      <h1>Tiempo de Juego</h1>
+      <h1>${TITULO}</h1>
       <div class="aviso-config"><b>Falta conectar la base de datos.</b><br>${motivo}</div>
       <a class="btn primario" href="?demo">Probar en modo demo</a>
     </main>`;
@@ -260,7 +295,7 @@
   function vistaLogin() {
     return `<main class="login">
       <div class="logo">🎮</div>
-      <h1>Tiempo de Juego</h1>
+      <h1>${TITULO}</h1>
       <p class="sub">Escribe tu PIN</p>
       <form id="form-pin">
         <input id="pin" type="password" inputmode="numeric" autocomplete="off" autofocus
@@ -269,19 +304,27 @@
       </form>
       <p class="error">${esc(S.errorLogin)}</p>
       ${DEMO ? '<p class="sub">Modo demo: PIN 1111 = Admin · 2222 = Tutora</p>' : ''}
+      <div class="sin-pin">
+        <button class="btn" data-acc="invitado">Entrar sin contraseña</button>
+        <p class="sub">Solo para ver las citas aprobadas</p>
+      </div>
     </main>`;
   }
 
+  const bannerDemo = () => (DEMO
+    ? '<div class="demo">MODO DEMO · datos solo en este navegador · <a href="?demo&reiniciar">reiniciar</a></div>'
+    : '');
+
   function vistaShell() {
     return `<header class="barra">
-        <div class="titulo">🎮 Tiempo de Juego</div>
+        <div class="titulo">🎮 ${TITULO}</div>
         <div class="yo">
           <span id="yo-nombre"></span>
           <button class="btn-texto" id="btn-avisos" data-acc="avisos" hidden title="Activar avisos en este dispositivo" aria-label="Activar avisos">🔔</button>
           <button class="btn chico" data-acc="salir">Salir</button>
         </div>
       </header>
-      ${DEMO ? '<div class="demo">MODO DEMO · datos solo en este navegador · <a href="?demo&reiniciar">reiniciar</a></div>' : ''}
+      ${bannerDemo()}
       <main id="vista"></main>
       <nav class="tabs">
         <button data-tab="hoy">✅<span>Hoy</span></button>
@@ -512,6 +555,52 @@
     }
   }
 
+  // ---------- Sin contraseña: solo ver citas aprobadas ----------
+
+  const nombreDia = (f) => (f === S.hoy ? 'Hoy' : f === sumarDias(S.hoy, 1) ? 'Mañana' : fechaLarga(f));
+
+  function vistaCitas() {
+    let cuerpo = '';
+    let diaPrevio = '';
+    for (const c of S.citas || []) {
+      if (c.fecha !== diaPrevio) {
+        cuerpo += `<p class="dia-cita">${esc(nombreDia(c.fecha))}</p>`;
+        diaPrevio = c.fecha;
+      }
+      cuerpo += citaHTML(c);
+    }
+    if (!S.citas) cuerpo = S.errorCitas ? '' : '<p class="vacio">Cargando…</p>';
+    else if (!S.citas.length) cuerpo = '<p class="vacio">No hay citas aprobadas por ahora.</p>';
+    return `<header class="barra">
+        <div class="titulo">🎮 ${TITULO}</div>
+        <div class="yo">
+          <span>Sin contraseña</span>
+          <button class="btn chico" data-acc="salir-invitado">Salir</button>
+        </div>
+      </header>
+      ${bannerDemo()}
+      <main class="vista-citas">
+        <section class="tarjeta">
+          <p class="fecha-hoy">${esc(fechaLarga(S.hoy))}</p>
+          <h2>📅 Citas aprobadas</h2>
+          ${cuerpo}
+          ${S.errorCitas ? `<p class="error">${esc(S.errorCitas)}</p>` : ''}
+          <p class="sub">Solo lectura · se actualiza cada 30 segundos.</p>
+        </section>
+      </main>`;
+  }
+
+  function citaHTML(c) {
+    const cuando = `<div><b>${c.hora ? horaCorta(c.hora) : 'Sin hora fija'}</b> · ${c.minutos} min</div>`;
+    if (!c.iniciada_en) return `<div class="sesion">${cuando}<span>⏳ Por empezar</span></div>`;
+    if (enCurso(c)) {
+      return `<div class="sesion activa">${cuando}
+        <div>🎮 Quedan <b class="cuenta" data-fin="${finDe(c)}">${cuenta(finDe(c) - Date.now())}</b></div></div>`;
+    }
+    const fin = c.terminada_en || new Date(finDe(c)).toISOString();
+    return `<div class="sesion fin">${cuando}<span>✔ Terminada · ${hora(c.iniciada_en)}–${hora(fin)}</span></div>`;
+  }
+
   // ---------- Diálogos ----------
 
   function dialogo(html) {
@@ -573,6 +662,18 @@
   }
 
   const ACCIONES = {
+    async invitado() {
+      Object.assign(S, { invitado: true, citas: null, errorCitas: '', errorLogin: '' });
+      recordarInvitado(true);
+      await cargarCitas();
+    },
+
+    'salir-invitado'() {
+      Object.assign(S, { invitado: false, citas: null, errorCitas: '' });
+      recordarInvitado(false);
+      render();
+    },
+
     async salir() {
       if (!confirm('¿Cerrar sesión en este dispositivo?')) return;
       await api.salir();
@@ -787,29 +888,37 @@
   });
 
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden || !S.cargado) return;
+    if (document.hidden || !(S.cargado || S.invitado)) return;
     programarRecarga();
-    marcarVisto();
+    if (S.cargado) marcarVisto();
   });
-  window.addEventListener('online', () => S.cargado && programarRecarga());
+  window.addEventListener('online', () => (S.cargado || S.invitado) && programarRecarga());
+
+  // Sin contraseña no hay tiempo real: se consulta cada 30 segundos.
+  setInterval(() => {
+    if (S.invitado && !document.hidden) programarRecarga();
+  }, 30000);
 
   // Cuenta regresiva, fin del tiempo y cambio de día.
   setInterval(() => {
-    if (!S.cargado) return;
+    if (!S.cargado && !S.invitado) return;
     let cambio = false;
     document.querySelectorAll('[data-fin]').forEach((el) => {
       const resta = Number(el.dataset.fin) - Date.now();
       if (resta > 0) el.textContent = cuenta(resta);
       else cambio = true;
     });
-    for (const s of S.d.solicitudes) {
+    for (const s of S.cargado ? S.d.solicitudes : []) {
       if (s.estado === 'aprobada' && s.iniciada_en && !s.terminada_en && Date.now() >= finDe(s) && !S.agotadas.has(s.id)) {
         S.agotadas.add(s.id);
         tiempoAgotado(s);
         cambio = true;
       }
     }
-    if (cambio) renderVista();
+    if (cambio) {
+      if (S.invitado) render();
+      else renderVista();
+    }
     const hoy = fechaEn();
     if (hoy !== S.hoy) {
       S.hoy = hoy;
@@ -886,6 +995,8 @@
       async decidir(id, cambios) {
         return ok(await sb.from('solicitudes').update(cambios).eq('id', id).eq('estado', 'pendiente').select()).length > 0;
       },
+      // Sin contraseña: la función del servidor solo devuelve fecha, hora, minutos y temporizador.
+      async citas(desde) { return ok(await sb.rpc('citas_aprobadas', { p_desde: desde })); },
       async iniciar(id) { return ok(await sb.rpc('iniciar_juego', { p_id: id })); },
       async terminar(id) { return ok(await sb.rpc('terminar_juego', { p_id: id })); },
       async enviar(m) { ok(await sb.from('mensajes').insert({ ...m, autor: uid })); },
@@ -1022,6 +1133,16 @@
           return true;
         });
       },
+      async citas(desde) {
+        db = leer();
+        return db.solicitudes
+          .filter((s) => s.estado === 'aprobada' && s.fecha >= desde)
+          .sort((a, b) => a.fecha.localeCompare(b.fecha) || (a.hora || '99').localeCompare(b.hora || '99')
+            || a.creado_en.localeCompare(b.creado_en))
+          .map((s) => ({
+            id: s.id, fecha: s.fecha, hora: s.hora, minutos: s.minutos, iniciada_en: s.iniciada_en, terminada_en: s.terminada_en,
+          }));
+      },
       async iniciar(id) {
         return cambiar(() => {
           const s = sol(id);
@@ -1056,6 +1177,10 @@
   async function arrancar() {
     if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
       navigator.serviceWorker.register('sw.js').catch(() => {});
+    }
+    if (api && eraInvitado()) {
+      S.invitado = true;
+      return cargarCitas();
     }
     if (api) {
       try {
