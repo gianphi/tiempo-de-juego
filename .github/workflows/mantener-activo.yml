@@ -1,0 +1,20 @@
+# Supabase (plan gratis) pausa el proyecto tras 7 días sin uso.
+# Esta tarea le hace una consulta cada 3 días para que no se duerma.
+name: Mantener Supabase activo
+
+on:
+  schedule:
+    - cron: '17 13 */3 * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Consultar Supabase
+        run: |
+          URL=$(grep -oP "SUPABASE_URL:\s*'\K[^']+" config.js)
+          KEY=$(grep -oP "SUPABASE_KEY:\s*'\K[^']+" config.js)
+          if [[ "$URL" == *TU-PROYECTO* ]]; then echo "config.js aún no está configurado"; exit 0; fi
+          curl -fsS "$URL/rest/v1/ajustes?select=id" -H "apikey: $KEY" -o /dev/null -w "Supabase respondió %{http_code}\n"
